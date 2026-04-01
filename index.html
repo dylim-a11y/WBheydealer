@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>광고 효율 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg2: #131720;
+    --bg3: #1a2030;
+    --bg4: #1f2640;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8891a8;
+    --text3: #555e72;
+    --blue: #4d9cff;
+    --blue2: #1a6fd4;
+    --teal: #2dd4a0;
+    --amber: #ffb347;
+    --coral: #ff6b6b;
+    --purple: #9b7fff;
+    --green: #52d68a;
+    --pink: #ff7eb3;
+    --accent: #4d9cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* Layout */
+  .sidebar {
+    position: fixed; top: 0; left: 0;
+    width: 220px; height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    z-index: 100;
+    padding: 0;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .brand { font-size: 13px; font-weight: 700; color: var(--blue); letter-spacing: 0.08em; text-transform: uppercase; }
+  .sidebar-logo .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .sidebar-section { padding: 16px 12px 8px; font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .sidebar-nav { flex: 1; padding: 0 8px; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px;
+    font-size: 13px; color: var(--text2);
+    cursor: pointer; transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(77,156,255,0.12); color: var(--blue); }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
+
+  .sidebar-bottom {
+    padding: 16px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .last-update { font-size: 11px; color: var(--text3); }
+  .refresh-btn {
+    margin-top: 10px; width: 100%;
+    padding: 8px 0; background: rgba(77,156,255,0.1);
+    border: 1px solid rgba(77,156,255,0.2);
+    border-radius: 8px; color: var(--blue);
+    font-size: 12px; font-family: inherit;
+    cursor: pointer; transition: all 0.15s;
+    font-weight: 500;
+  }
+  .refresh-btn:hover { background: rgba(77,156,255,0.2); }
+
+  .main {
+    margin-left: 220px;
+    padding: 28px 28px 40px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .page-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+  .page-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+  .filter-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  select {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  select:hover { border-color: rgba(77,156,255,0.4); }
+  select:focus { border-color: var(--blue); }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: var(--border2); }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-accent, var(--blue));
+    opacity: 0.6;
+  }
+  .kpi-label { font-size: 11px; color: var(--text3); font-weight: 500; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .kpi-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .kpi-trend { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 11px; }
+  .trend-up { color: var(--teal); }
+  .trend-dn { color: var(--coral); }
+
+  /* Charts */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-card.triple { grid-column: span 1; }
+  .card-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .card-badge {
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 20px;
+    background: rgba(77,156,255,0.12);
+    color: var(--blue); letter-spacing: 0.05em;
+  }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Table */
+  .table-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .table-wrap { overflow-x: auto; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 11px; font-weight: 600;
+    color: var(--text3); letter-spacing: 0.06em;
+    padding: 0 12px 12px; text-align: left;
+    text-transform: uppercase; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th.num { text-align: right; }
+  tbody td {
+    font-size: 13px; color: var(--text2);
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.name { color: var(--text); font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg3); }
+
+  .bar-cell { display: flex; align-items: center; gap: 8px; }
+  .mini-bar-wrap { flex: 1; background: var(--bg4); border-radius: 3px; height: 5px; min-width: 60px; }
+  .mini-bar { height: 5px; border-radius: 3px; background: var(--blue); }
+
+  /* USP Table */
+  .usp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  /* Loading / Error */
+  .loading-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; z-index: 9999;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--text3); }
+
+  .error-msg {
+    background: rgba(255,107,107,0.08);
+    border: 1px solid rgba(255,107,107,0.2);
+    border-radius: 12px; padding: 20px 24px;
+    color: var(--coral); font-size: 13px;
+    margin-bottom: 20px; line-height: 1.6;
+  }
+
+  /* Tag */
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;
+  }
+  .tag-blue { background: rgba(77,156,255,0.12); color: var(--blue); }
+  .tag-teal { background: rgba(45,212,160,0.12); color: var(--teal); }
+  .tag-amber { background: rgba(255,179,71,0.12); color: var(--amber); }
+  .tag-coral { background: rgba(255,107,107,0.12); color: var(--coral); }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 20px; }
+
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .usp-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="spinner"></div>
+  <div class="loading-text">구글 시트에서 데이터를 불러오는 중...</div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">WB Dashboard</div>
+    <div class="sub">광고 효율 리포트</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section">메뉴</div>
+    <div class="nav-item active">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      전체 개요
+    </div>
+    <div class="sidebar-section">필터</div>
+    <div style="padding: 0 6px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">매체</div>
+      <select id="filterMedia" style="width:100%;margin-bottom:10px;"><option value="">전체</option></select>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">주차</div>
+      <select id="filterWeek" style="width:100%;margin-bottom:10px;"><option value="">전체</option></select>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">형식</div>
+      <select id="filterFormat" style="width:100%;margin-bottom:10px;"><option value="">전체</option></select>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">소재 유형</div>
+      <select id="filterUSP" style="width:100%;margin-bottom:10px;"><option value="">전체</option></select>
+    </div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="last-update" id="lastUpdate">마지막 업데이트: —</div>
+    <button class="refresh-btn" onclick="loadData()">↻ 새로고침</button>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main" id="mainContent" style="display:none;">
+  <div class="page-header">
+    <div>
+      <div class="page-title">광고 효율 대시보드</div>
+      <div class="page-sub" id="dataRange">데이터 범위 로딩 중...</div>
+    </div>
+  </div>
+
+  <div id="errorBox" style="display:none;" class="error-msg"></div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--card-accent: var(--blue)">
+      <div class="kpi-label">총 노출수</div>
+      <div class="kpi-value" id="kImpr">—</div>
+      <div class="kpi-sub" id="kImprSub"></div>
+    </div>
+    <div class="kpi-card" style="--card-accent: var(--teal)">
+      <div class="kpi-label">총 클릭수</div>
+      <div class="kpi-value" id="kClick">—</div>
+      <div class="kpi-sub" id="kClickSub">CTR —</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: var(--amber)">
+      <div class="kpi-label">총 비용</div>
+      <div class="kpi-value" id="kCost">—</div>
+      <div class="kpi-sub" id="kCostSub"></div>
+    </div>
+    <div class="kpi-card" style="--card-accent: var(--purple)">
+      <div class="kpi-label">인스톨 (Installs)</div>
+      <div class="kpi-value" id="kInstall">—</div>
+      <div class="kpi-sub" id="kInstallSub">CPI —</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: var(--coral)">
+      <div class="kpi-label">CPC</div>
+      <div class="kpi-value" id="kCPC">—</div>
+      <div class="kpi-sub" id="kCPCSub"></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">매체별 비용 분포</div>
+        <span class="card-badge">BUDGET</span>
+      </div>
+      <div id="legend1" class="legend"></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="c1"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">매체별 인스톨</div>
+        <span class="card-badge">INSTALL</span>
+      </div>
+      <div class="chart-wrap" style="height:260px"><canvas id="c2"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Chart Row 2: Line -->
+  <div class="chart-card full" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div class="card-title">일별 비용 & 인스톨 추이</div>
+      <span class="card-badge">TREND</span>
+    </div>
+    <div class="chart-wrap" style="height:200px"><canvas id="c3"></canvas></div>
+  </div>
+
+  <!-- Chart Row 3: CTR & CPI -->
+  <div class="charts-grid" style="margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">매체별 CTR (%)</div>
+        <span class="card-badge">CTR</span>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="c4"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">매체별 CPI (원)</div>
+        <span class="card-badge">CPI</span>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="c5"></canvas></div>
+    </div>
+  </div>
+
+  <!-- USP / 형식 breakdown -->
+  <div class="usp-grid">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">형식별 비용</div>
+        <span class="card-badge">FORMAT</span>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="c6"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Image/Video별 성과</div>
+        <span class="card-badge">CREATIVE</span>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="c7"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Media Table -->
+  <div class="table-card">
+    <div class="card-header">
+      <div class="card-title">매체별 상세 성과</div>
+      <span class="card-badge">DETAIL</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>매체</th>
+            <th class="num">노출</th>
+            <th class="num">클릭</th>
+            <th class="num">CTR</th>
+            <th class="num">비용</th>
+            <th class="num">CPC</th>
+            <th class="num">인스톨</th>
+            <th class="num">CPI</th>
+            <th class="num">비용 비중</th>
+          </tr>
+        </thead>
+        <tbody id="mediaTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Campaign Table -->
+  <div class="table-card">
+    <div class="card-header">
+      <div class="card-title">캠페인별 상세 성과</div>
+      <span class="card-badge">CAMPAIGN</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>캠페인</th>
+            <th>매체</th>
+            <th class="num">비용</th>
+            <th class="num">클릭</th>
+            <th class="num">CTR</th>
+            <th class="num">인스톨</th>
+            <th class="num">CPI</th>
+          </tr>
+        </thead>
+        <tbody id="campTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const API_KEY = 'AIzaSyA3jHDzKBISgpagSaPdxOqTJ75OPWRZPs4';
+const SHEET_ID = '1V9V7LFEOzOo9P4f5sCg30no9VGqpNIYZECUh9MtpAcw';
+const GID = '429547093';
+
+let rawData = [];
+let charts = {};
+const PALETTE = ['#4d9cff','#2dd4a0','#ffb347','#ff6b6b','#9b7fff','#52d68a','#ff7eb3','#38bdf8','#a3e635','#fb923c'];
+
+function n(r, k) { return parseFloat((r[k]||'0').toString().replace(/,/g,'')) || 0; }
+function fmt(v, unit='') {
+  if (v >= 1e8) return (v/1e8).toFixed(1) + '억' + unit;
+  if (v >= 1e4) return Math.round(v/1e4) + '만' + unit;
+  return Math.round(v).toLocaleString() + unit;
+}
+function fmtN(v) { return Math.round(v).toLocaleString(); }
+function pct(a,b) { return b ? (a/b*100).toFixed(2)+'%' : '-'; }
+function sum(arr, k) { return arr.reduce((s,r) => s + n(r,k), 0); }
+
+async function loadData() {
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('errorBox').style.display = 'none';
+
+  try {
+    const sheetName = encodeURIComponent('자동화_Raw');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${sheetName}!C3:AB?key=${API_KEY}`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (json.error) throw new Error(`API 오류: ${json.error.message}`);
+    const rows = json.values;
+    if (!rows || rows.length < 2) throw new Error('데이터가 비어 있습니다.');
+
+    const headers = rows[0];
+    rawData = rows.slice(1).map(r => {
+      let obj = {};
+      headers.forEach((h,i) => obj[h.trim()] = (r[i]||'').trim());
+      return obj;
+    }).filter(r => r['일자'] && r['일자'] !== '');
+
+    populateFilters();
+    render();
+
+    document.getElementById('lastUpdate').textContent = '업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    const eb = document.getElementById('errorBox');
+    eb.style.display = 'block';
+    eb.innerHTML = `<strong>데이터 로드 실패</strong><br>${e.message}<br><br>시트 탭 이름이 "자동화_Raw" 인지, 범위가 C3:AB 인지 확인해주세요.`;
+  }
+}
+
+function populateFilters() {
+  const fill = (id, key, label) => {
+    const vals = [...new Set(rawData.map(r=>r[key]).filter(Boolean))].sort();
+    const el = document.getElementById(id);
+    const cur = el.value;
+    el.innerHTML = `<option value="">전체 ${label}</option>` + vals.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
+  };
+  fill('filterMedia','매체','매체');
+  fill('filterWeek','주차 구분','주차');
+  fill('filterFormat','형식','형식');
+  fill('filterUSP','USP/PPL/Promo','소재');
+}
+
+function getFiltered() {
+  const m = document.getElementById('filterMedia').value;
+  const w = document.getElementById('filterWeek').value;
+  const f = document.getElementById('filterFormat').value;
+  const u = document.getElementById('filterUSP').value;
+  return rawData.filter(r =>
+    (!m || r['매체']===m) && (!w || r['주차 구분']===w) &&
+    (!f || r['형식']===f) && (!u || r['USP/PPL/Promo']===u)
+  );
+}
+
+function groupBy(data, key) {
+  return data.reduce((acc, r) => {
+    const k = r[key] || '기타';
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(r); return acc;
+  }, {});
+}
+
+function render() {
+  const data = getFiltered();
+  if (!data.length) { return; }
+
+  const totalImp = sum(data,'노출'), totalClk = sum(data,'클릭');
+  const totalCost = sum(data,'비용'), totalInstall = sum(data,'어트리뷰션(Installs)');
+  const ctr = totalImp ? totalClk/totalImp*100 : 0;
+  const cpc = totalClk ? totalCost/totalClk : 0;
+  const cpi = totalInstall ? totalCost/totalInstall : 0;
+
+  document.getElementById('kImpr').textContent = fmt(totalImp);
+  document.getElementById('kClick').textContent = fmt(totalClk);
+  document.getElementById('kClickSub').textContent = `CTR ${ctr.toFixed(2)}%`;
+  document.getElementById('kCost').textContent = fmt(totalCost,'원');
+  document.getElementById('kInstall').textContent = fmtN(totalInstall);
+  document.getElementById('kInstallSub').textContent = `CPI ${fmtN(cpi)}원`;
+  document.getElementById('kCPC').textContent = fmtN(cpc)+'원';
+
+  const dates = [...new Set(data.map(r=>r['일자']))].sort();
+  if (dates.length) {
+    document.getElementById('dataRange').textContent = `${dates[0]} ~ ${dates[dates.length-1]} / 총 ${data.length.toLocaleString()}행`;
+  }
+
+  const byMedia = groupBy(data,'매체');
+  const mediaKeys = Object.keys(byMedia);
+  const mediaCost = mediaKeys.map(m => sum(byMedia[m],'비용'));
+  const mediaInstall = mediaKeys.map(m => sum(byMedia[m],'어트리뷰션(Installs)'));
+  const mediaCTR = mediaKeys.map(m => {
+    const imp = sum(byMedia[m],'노출'), clk = sum(byMedia[m],'클릭');
+    return imp ? +(clk/imp*100).toFixed(3) : 0;
+  });
+  const mediaCPI = mediaKeys.map(m => {
+    const cost = sum(byMedia[m],'비용'), inst = sum(byMedia[m],'어트리뷰션(Installs)');
+    return inst ? Math.round(cost/inst) : 0;
+  });
+
+  // Legend for donut
+  const leg = document.getElementById('legend1');
+  leg.innerHTML = mediaKeys.map((m,i)=>`<div class="legend-item"><div class="legend-dot" style="background:${PALETTE[i%PALETTE.length]}"></div>${m}</div>`).join('');
+
+  // Date aggregation
+  const byDate = {};
+  data.forEach(r => {
+    const d = r['일자'];
+    if (!byDate[d]) byDate[d] = {cost:0,install:0,clk:0,imp:0};
+    byDate[d].cost += n(r,'비용');
+    byDate[d].install += n(r,'어트리뷰션(Installs)');
+    byDate[d].clk += n(r,'클릭');
+    byDate[d].imp += n(r,'노출');
+  });
+
+  const byFormat = groupBy(data,'형식');
+  const formatKeys = Object.keys(byFormat);
+  const byIV = groupBy(data,'Image/Video');
+  const ivKeys = Object.keys(byIV);
+
+  // Destroy old charts
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+
+  // C1: Donut - media cost
+  charts.c1 = new Chart(document.getElementById('c1'), {
+    type: 'doughnut',
+    data: { labels: mediaKeys, datasets: [{ data: mediaCost, backgroundColor: PALETTE, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${fmtN(ctx.raw)}원` } } } }
+  });
+
+  // C2: Horizontal bar - install
+  charts.c2 = new Chart(document.getElementById('c2'), {
+    type: 'bar',
+    data: { labels: mediaKeys, datasets: [{ data: mediaInstall, backgroundColor: PALETTE.map(c=>c+'cc'), borderRadius:6, borderWidth:0 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:'#555e72',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'} }, y:{ ticks:{color:'#8891a8',font:{size:12}} } } }
+  });
+
+  // C3: Line - trend
+  charts.c3 = new Chart(document.getElementById('c3'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [
+        { label:'비용', data: dates.map(d=>byDate[d]?.cost||0), borderColor:'#4d9cff', backgroundColor:'rgba(77,156,255,0.08)', fill:true, tension:0.3, pointRadius:2, borderWidth:2, yAxisID:'y' },
+        { label:'인스톨', data: dates.map(d=>byDate[d]?.install||0), borderColor:'#2dd4a0', backgroundColor:'rgba(45,212,160,0.05)', fill:false, tension:0.3, pointRadius:2, borderWidth:2, yAxisID:'y2' }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{ display:true, labels:{ color:'#8891a8', font:{size:11}, boxWidth:10, padding:16 } } },
+      scales:{
+        x:{ ticks:{color:'#555e72',font:{size:10},maxTicksLimit:12,maxRotation:45}, grid:{color:'rgba(255,255,255,0.03)'} },
+        y:{ ticks:{color:'#555e72',font:{size:11},callback:v=>fmt(v)}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y2:{ position:'right', ticks:{color:'#2dd4a0',font:{size:11}}, grid:{display:false} }
+      }
+    }
+  });
+
+  // C4: CTR bar
+  charts.c4 = new Chart(document.getElementById('c4'), {
+    type: 'bar',
+    data: { labels: mediaKeys, datasets: [{ data: mediaCTR, backgroundColor: '#4d9cff88', borderColor:'#4d9cff', borderRadius:6, borderWidth:1 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ticks:{color:'#555e72',font:{size:11}}}, y:{ticks:{color:'#555e72',font:{size:11}, callback:v=>v+'%'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  // C5: CPI bar
+  charts.c5 = new Chart(document.getElementById('c5'), {
+    type: 'bar',
+    data: { labels: mediaKeys, datasets: [{ data: mediaCPI, backgroundColor: '#9b7fff88', borderColor:'#9b7fff', borderRadius:6, borderWidth:1 }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ticks:{color:'#555e72',font:{size:11}}}, y:{ticks:{color:'#555e72',font:{size:11}, callback:v=>fmtN(v)+'원'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  // C6: Format cost
+  charts.c6 = new Chart(document.getElementById('c6'), {
+    type: 'doughnut',
+    data: { labels: formatKeys, datasets: [{ data: formatKeys.map(k=>sum(byFormat[k],'비용')), backgroundColor: PALETTE.slice(2), borderWidth:0 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ display:true, position:'right', labels:{color:'#8891a8',font:{size:11},boxWidth:10} } } }
+  });
+
+  // C7: Image/Video
+  const ivCost = ivKeys.map(k=>sum(byIV[k],'비용'));
+  const ivInstall = ivKeys.map(k=>sum(byIV[k],'어트리뷰션(Installs)'));
+  charts.c7 = new Chart(document.getElementById('c7'), {
+    type: 'bar',
+    data: { labels: ivKeys, datasets: [
+      { label:'비용', data: ivCost, backgroundColor:'#ffb34788', borderRadius:4, borderWidth:0 },
+      { label:'인스톨', data: ivInstall, backgroundColor:'#52d68a88', borderRadius:4, borderWidth:0 }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, labels:{color:'#8891a8',font:{size:11},boxWidth:10} } }, scales:{ x:{ticks:{color:'#555e72',font:{size:11}}}, y:{ticks:{color:'#555e72',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+
+  // Media table
+  const mtb = document.getElementById('mediaTableBody');
+  mtb.innerHTML = '';
+  const maxCost = Math.max(...mediaCost);
+  mediaKeys.forEach((m,i) => {
+    const d = byMedia[m];
+    const cost = sum(d,'비용'), imp = sum(d,'노출'), clk = sum(d,'클릭'), inst = sum(d,'어트리뷰션(Installs)');
+    const share = totalCost ? cost/totalCost*100 : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="name"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${PALETTE[i%PALETTE.length]};margin-right:8px;"></span>${m}</td>
+      <td class="num">${fmtN(imp)}</td>
+      <td class="num">${fmtN(clk)}</td>
+      <td class="num">${pct(clk,imp)}</td>
+      <td class="num">${fmtN(cost)}원</td>
+      <td class="num">${fmtN(clk?cost/clk:0)}원</td>
+      <td class="num">${fmtN(inst)}</td>
+      <td class="num">${fmtN(inst?cost/inst:0)}원</td>
+      <td><div class="bar-cell"><div class="mini-bar-wrap"><div class="mini-bar" style="width:${Math.max(2,cost/maxCost*100)}%"></div></div><span style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">${share.toFixed(1)}%</span></div></td>
+    `;
+    mtb.appendChild(tr);
+  });
+
+  // Campaign table (top 20 by cost)
+  const byCamp = groupBy(data,'캠페인');
+  const campKeys = Object.keys(byCamp).sort((a,b) => sum(byCamp[b],'비용') - sum(byCamp[a],'비용')).slice(0,20);
+  const ctb = document.getElementById('campTableBody');
+  ctb.innerHTML = '';
+  campKeys.forEach(c => {
+    const d = byCamp[c];
+    const media = [...new Set(d.map(r=>r['매체']))].join(', ');
+    const cost = sum(d,'비용'), clk = sum(d,'클릭'), imp = sum(d,'노출'), inst = sum(d,'어트리뷰션(Installs)');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="name" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${c}</td>
+      <td><span class="tag tag-blue">${media}</span></td>
+      <td class="num">${fmtN(cost)}원</td>
+      <td class="num">${fmtN(clk)}</td>
+      <td class="num">${pct(clk,imp)}</td>
+      <td class="num">${fmtN(inst)}</td>
+      <td class="num">${fmtN(inst?cost/inst:0)}원</td>
+    `;
+    ctb.appendChild(tr);
+  });
+}
+
+['filterMedia','filterWeek','filterFormat','filterUSP'].forEach(id => {
+  document.getElementById(id).addEventListener('change', render);
+});
+
+loadData();
+</script>
+</body>
+</html>
